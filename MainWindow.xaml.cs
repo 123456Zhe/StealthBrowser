@@ -112,10 +112,12 @@ namespace StealthBrowser
 
             Loaded += async (s, e) =>
             {
-                string dataDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data");
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                string dataDir = Path.Combine(baseDir, "data");
+                string fixedRuntime = FindFixedRuntime(baseDir); // 内嵌内核优先
                 try
                 {
-                    env = await CoreWebView2Environment.CreateAsync(null, dataDir);
+                    env = await CoreWebView2Environment.CreateAsync(fixedRuntime, dataDir);
                 }
                 catch (Exception ex)
                 {
@@ -158,6 +160,31 @@ namespace StealthBrowser
             tray.Visible = false;
             tray.Dispose();
             base.OnClosed(e);
+        }
+
+        // ---------------- 内嵌内核 ----------------
+        // 程序目录下有 webview2-runtime/（Fixed Version Runtime）就用它，
+        // 没有则回退到系统自带的 Evergreen Runtime。
+        // 兼容两种布局：webview2-runtime/msedgewebview2.exe，
+        // 或 webview2-runtime/Microsoft.WebView2.FixedVersionRuntime.<版本>.x64/msedgewebview2.exe
+        static string FindFixedRuntime(string baseDir)
+        {
+            try
+            {
+                string rt = Path.Combine(baseDir, "webview2-runtime");
+                if (File.Exists(Path.Combine(rt, "msedgewebview2.exe")))
+                    return rt;
+                if (Directory.Exists(rt))
+                {
+                    foreach (var sub in Directory.GetDirectories(rt, "Microsoft.WebView2.FixedVersionRuntime.*"))
+                    {
+                        if (File.Exists(Path.Combine(sub, "msedgewebview2.exe")))
+                            return sub;
+                    }
+                }
+            }
+            catch { }
+            return null;
         }
 
         // ---------------- 隐身 ----------------

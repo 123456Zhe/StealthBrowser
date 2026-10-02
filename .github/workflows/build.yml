@@ -23,14 +23,44 @@ jobs:
       - name: Build
         run: msbuild StealthBrowser.csproj /p:Configuration=Release
 
+      - name: Download WebView2 fixed runtime
+        shell: pwsh
+        run: |
+          $base = "https://github.com/ciderapp/WebView2-Archives/releases/latest/download"
+          $cab = "$env:TEMP\webview2.cab"
+          Invoke-WebRequest -Uri "$base/x64.cab" -OutFile $cab
+          $ver = (Invoke-WebRequest -Uri "$base/latest-version.txt").Content.Trim()
+          "WEBVIEW2_FIXED_VERSION=$ver" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Write-Host "WebView2 fixed runtime version: $ver"
+          Invoke-WebRequest -Uri "$base/SHA256SUMS.txt" -OutFile "$env:TEMP\SHA256SUMS.txt"
+          $line = Select-String -Path "$env:TEMP\SHA256SUMS.txt" -Pattern ([regex]::Escape("Microsoft.WebView2.FixedVersionRuntime.$ver.x64.cab")) | Select-Object -First 1
+          if ($null -eq $line) { throw "SHA256 entry not found for version $ver" }
+          $expected = ($line.Line -split '\s+')[0].ToLower()
+          $actual = (Get-FileHash -Path $cab -Algorithm SHA256).Hash.ToLower()
+          if ($expected -ne $actual) { throw "SHA256 mismatch! expected $expected got $actual" }
+          Write-Host "SHA256 verified: $actual"
+
       - name: Package
         shell: pwsh
         run: |
+          $tmp = "$env:TEMP\wv2rt"
+          if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
+          New-Item -ItemType Directory -Force $tmp | Out-Null
+          expand "$env:TEMP\webview2.cab" -F:* $tmp | Out-Null
+          $exe = Get-ChildItem -Path $tmp -Recurse -Filter msedgewebview2.exe | Select-Object -First 1
+          if ($null -eq $exe) { throw "msedgewebview2.exe not found in CAB" }
+          Write-Host "Runtime dir: $($exe.DirectoryName)"
           New-Item -ItemType Directory -Force dist | Out-Null
           Copy-Item bin/Release/StealthBrowser.exe dist/
           Copy-Item bin/Release/WebView2Loader.dll dist/
           Copy-Item bin/Release/Microsoft.Web.WebView2.*.dll dist/
-          Compress-Archive -Path dist/* -DestinationPath StealthBrowser-win-x64.zip -Force
+          Copy-Item $exe.DirectoryName dist/webview2-runtime -Recurse -Force
+          $zip = "C:\Program Files\7-Zip\7z.exe"
+          if (Test-Path $zip) {
+            & $zip a -tzip -mx=5 StealthBrowser-win-x64.zip ./dist/* | Out-Null
+          } else {
+            Compress-Archive -Path dist/* -DestinationPath StealthBrowser-win-x64.zip -Force
+          }
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
