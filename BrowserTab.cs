@@ -47,7 +47,8 @@ namespace StealthBrowser
                 owner.OpenTab(e.Uri);
             };
 
-            core.AcceleratorKeyPressed += (s, e) =>
+            // 注意：AcceleratorKeyPressed 在 Controller 上，不在 CoreWebView2 本体上
+            core.Controller.AcceleratorKeyPressed += (s, e) =>
             {
                 if (e.VirtualKey == 123) // F12 → 开发者工具
                 {
