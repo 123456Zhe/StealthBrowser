@@ -1,0 +1,46 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <OutputType>WinExe</OutputType>
+    <CefSharpAnyCpuSupport>false</CefSharpAnyCpuSupport>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
+    <OutputPath>bin\</OutputPath>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <Platforms>x64</Platforms>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>Resources\stealthbrowser.ico</ApplicationIcon>
+  </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject>StealthBrowser.Program</StartupObject>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Update="Controls\BrowserTabStrip\BaseStyledPanel.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Controls\BrowserTabStrip\BrowserTabStrip.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="Controls\BrowserTabStrip\BrowserTabPage.cs">
+      <SubType>Component</SubType>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\stealthbrowser.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="CefSharp.Common" Version="152.0.100" />
+    <PackageReference Include="CefSharp.Common.NETCore" Version="152.0.100" />
+    <PackageReference Include="CefSharp.WinForms.NETCore" Version="152.0.100" />
+    <PackageReference Include="chromiumembeddedframework.runtime.win-x64" Version="152.0.10" />
+    <PackageReference Include="FontAwesome.Sharp" Version="6.6.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System.Net" />
+    <Reference Include="System.Web" />
+  </ItemGroup>
+</Project>

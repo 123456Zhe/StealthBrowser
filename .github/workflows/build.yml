@@ -14,53 +14,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
 
-      - name: Restore NuGet packages
-        run: msbuild -t:restore StealthBrowser.csproj
+      - name: Publish (self-contained, portable)
+        run: dotnet publish src/StealthBrowser.csproj -c Release -r win-x64 --self-contained true -o publish
 
-      - name: Build
-        run: msbuild StealthBrowser.csproj /p:Configuration=Release
-
-      - name: Download WebView2 fixed runtime
+      - name: Bundle VC++ runtime (app-local, no install needed)
         shell: pwsh
         run: |
-          $base = "https://github.com/ciderapp/WebView2-Archives/releases/latest/download"
-          $cab = "$env:TEMP\webview2.cab"
-          Invoke-WebRequest -Uri "$base/x64.cab" -OutFile $cab
-          $ver = ([System.Text.Encoding]::UTF8.GetString((Invoke-WebRequest -Uri "$base/latest-version.txt").Content)).Trim()
-          "WEBVIEW2_FIXED_VERSION=$ver" | Out-File -FilePath $env:GITHUB_ENV -Append
-          Write-Host "WebView2 fixed runtime version: $ver"
-          Invoke-WebRequest -Uri "$base/SHA256SUMS.txt" -OutFile "$env:TEMP\SHA256SUMS.txt"
-          $line = Select-String -Path "$env:TEMP\SHA256SUMS.txt" -Pattern ([regex]::Escape("Microsoft.WebView2.FixedVersionRuntime.$ver.x64.cab")) | Select-Object -First 1
-          if ($null -eq $line) { throw "SHA256 entry not found for version $ver" }
-          $expected = ($line.Line -split '\s+')[0].ToLower()
-          $actual = (Get-FileHash -Path $cab -Algorithm SHA256).Hash.ToLower()
-          if ($expected -ne $actual) { throw "SHA256 mismatch! expected $expected got $actual" }
-          Write-Host "SHA256 verified: $actual"
+          $dlls = @("msvcp140.dll","msvcp140_1.dll","msvcp140_2.dll","vcruntime140.dll","vcruntime140_1.dll","concrt140.dll")
+          foreach ($d in $dlls) {
+            $src = "C:\Windows\System32\$d"
+            if (Test-Path $src) { Copy-Item $src publish/ -Force; Write-Host "bundled $d" }
+            else { Write-Host "missing $d" }
+          }
 
       - name: Package
         shell: pwsh
         run: |
-          $tmp = "$env:TEMP\wv2rt"
-          if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
-          New-Item -ItemType Directory -Force $tmp | Out-Null
-          expand "$env:TEMP\webview2.cab" -F:* $tmp | Out-Null
-          $exe = Get-ChildItem -Path $tmp -Recurse -Filter msedgewebview2.exe | Select-Object -First 1
-          if ($null -eq $exe) { throw "msedgewebview2.exe not found in CAB" }
-          Write-Host "Runtime dir: $($exe.DirectoryName)"
-          New-Item -ItemType Directory -Force dist | Out-Null
-          Copy-Item bin/Release/StealthBrowser.exe dist/
-          Copy-Item bin/Release/WebView2Loader.dll dist/
-          Copy-Item bin/Release/Microsoft.Web.WebView2.*.dll dist/
-          Copy-Item $exe.DirectoryName dist/webview2-runtime -Recurse -Force
-          $zip = "C:\Program Files\7-Zip\7z.exe"
-          if (Test-Path $zip) {
-            & $zip a -tzip -mx=5 StealthBrowser-win-x64.zip ./dist/* | Out-Null
-          } else {
-            Compress-Archive -Path dist/* -DestinationPath StealthBrowser-win-x64.zip -Force
-          }
+          & "C:\Program Files\7-Zip\7z.exe" a -tzip -mx=5 StealthBrowser-win-x64.zip ./publish/*
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
