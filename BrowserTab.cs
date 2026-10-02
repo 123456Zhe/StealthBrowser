@@ -47,20 +47,20 @@ namespace StealthBrowser
                 owner.OpenTab(e.Uri);
             };
 
-            // 注意：AcceleratorKeyPressed 在 Controller 上，不在 CoreWebView2 本体上
-            core.Controller.AcceleratorKeyPressed += (s, e) =>
+            // 快捷键（F12 / Ctrl+W）：AcceleratorKeyPressed 只暴露在 Controller 上，
+            // WinForms 控件拿不到，故用注入脚本监听按键、经 WebMessageReceived 转发回来
+            core.WebMessageReceived += (s, e) =>
             {
-                if (e.VirtualKey == 123) // F12 → 开发者工具
-                {
-                    e.Handled = true;
-                    core.OpenDevToolsWindow();
-                }
-                else if (e.VirtualKey == 87 && Control.ModifierKeys == Keys.Control) // Ctrl+W → 关标签
-                {
-                    e.Handled = true;
-                    owner.CloseTab(this);
-                }
+                string msg;
+                if (!e.TryGetWebMessageAsString(out msg)) return;
+                if (msg == "wv2key:F12") core.OpenDevToolsWindow();
+                else if (msg == "wv2key:CTRLW") owner.CloseTab(this);
             };
+            await core.AddScriptToExecuteOnDocumentCreatedAsync(
+                "addEventListener('keydown', function(e) {" +
+                "  if (e.keyCode === 123) { chrome.webview.postMessage('wv2key:F12'); }" +
+                "  else if (e.ctrlKey && e.keyCode === 87) { chrome.webview.postMessage('wv2key:CTRLW'); e.preventDefault(); }" +
+                "}, true);");
 
             // 下载保存到程序目录下的 downloads 文件夹
             core.DownloadStarting += (s, e) =>
