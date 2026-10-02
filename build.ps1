@@ -1,3 +1,3 @@
-# 本地编译需要安装 .NET SDK（https://dotnet.microsoft.com/download）
-# 或者直接 push 到 GitHub，让 Action 自动编译
-dotnet build StealthBrowser.csproj -c Release
+# 本地构建（需要 .NET SDK；推荐直接用 GitHub Actions 自动构建）
+dotnet msbuild -t:restore StealthBrowser.csproj
+dotnet msbuild StealthBrowser.csproj /p:Configuration=Release
