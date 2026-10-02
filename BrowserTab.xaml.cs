@@ -86,6 +86,20 @@ window.addEventListener('keydown', function(e) {
                     e.ResultFilePath = Path.Combine(dlDir,
                         Path.GetFileName(e.ResultFilePath) ?? "download");
                     e.Handled = true;
+
+                    var op = e.DownloadOperation;
+                    op.StateChanged += (ss, ee) =>
+                    {
+                        try
+                        {
+                            if (op.State == CoreWebView2DownloadState.Completed)
+                                owner.Dispatcher.Invoke(() =>
+                                    owner.SetStatus("下载完成：" + Path.GetFileName(op.ResultFilePath)));
+                            else if (op.State == CoreWebView2DownloadState.Interrupted)
+                                owner.Dispatcher.Invoke(() => owner.SetStatus("下载中断"));
+                        }
+                        catch { }
+                    };
                 }
                 catch { }
             };
@@ -95,17 +109,6 @@ window.addEventListener('keydown', function(e) {
                 {
                     string name = Path.GetFileName(e.ResultFilePath);
                     owner.Dispatcher.Invoke(() => owner.SetStatus("正在下载：" + name));
-                }
-                catch { }
-            };
-            core.DownloadStateChanged += (s, e) =>
-            {
-                try
-                {
-                    if (e.State == CoreWebView2DownloadState.Completed)
-                        owner.Dispatcher.Invoke(() => owner.SetStatus("下载完成：" + Path.GetFileName(e.ResultFilePath)));
-                    else if (e.State == CoreWebView2DownloadState.Interrupted)
-                        owner.Dispatcher.Invoke(() => owner.SetStatus("下载中断"));
                 }
                 catch { }
             };
