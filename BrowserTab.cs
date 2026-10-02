@@ -51,8 +51,7 @@ namespace StealthBrowser
             // WinForms 控件拿不到，故用注入脚本监听按键、经 WebMessageReceived 转发回来
             core.WebMessageReceived += (s, e) =>
             {
-                string msg;
-                if (!e.TryGetWebMessageAsString(out msg)) return;
+                string msg = e.TryGetWebMessageAsString();
                 if (msg == "wv2key:F12") core.OpenDevToolsWindow();
                 else if (msg == "wv2key:CTRLW") owner.CloseTab(this);
             };
