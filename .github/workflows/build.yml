@@ -14,8 +14,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Restore
+        run: dotnet restore StealthBrowser.csproj
+
       - name: Build
-        run: dotnet build StealthBrowser.csproj -c Release
+        run: dotnet build StealthBrowser.csproj -c Release --no-restore
 
       - name: Package
         shell: pwsh
