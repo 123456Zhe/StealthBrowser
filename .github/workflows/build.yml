@@ -14,11 +14,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Restore
-        run: dotnet restore StealthBrowser.csproj
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Restore NuGet packages
+        run: msbuild -t:restore StealthBrowser.csproj
 
       - name: Build
-        run: dotnet build StealthBrowser.csproj -c Release --no-restore
+        run: msbuild StealthBrowser.csproj /p:Configuration=Release
 
       - name: Package
         shell: pwsh
