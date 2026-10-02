@@ -29,7 +29,7 @@ jobs:
           $base = "https://github.com/ciderapp/WebView2-Archives/releases/latest/download"
           $cab = "$env:TEMP\webview2.cab"
           Invoke-WebRequest -Uri "$base/x64.cab" -OutFile $cab
-          $ver = (Invoke-WebRequest -Uri "$base/latest-version.txt").Content.Trim()
+          $ver = ([System.Text.Encoding]::UTF8.GetString((Invoke-WebRequest -Uri "$base/latest-version.txt").Content)).Trim()
           "WEBVIEW2_FIXED_VERSION=$ver" | Out-File -FilePath $env:GITHUB_ENV -Append
           Write-Host "WebView2 fixed runtime version: $ver"
           Invoke-WebRequest -Uri "$base/SHA256SUMS.txt" -OutFile "$env:TEMP\SHA256SUMS.txt"
