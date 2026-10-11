@@ -5,6 +5,7 @@ using System.Text;
 using CefSharp;
 using System.Windows.Forms;
 using CefSharp.WinForms;
+using StealthBrowser.Managers;
 
 namespace StealthBrowser.Handlers {
 	internal class ContextMenuHandler : IContextMenuHandler {
@@ -130,6 +131,7 @@ namespace StealthBrowser.Handlers {
 
 			if (id == ShowDevTools) {
 				browser.ShowDevTools();
+				StealthManager.WatchDevTools();
 			}
 			if (id == CloseDevTools) {
 				browser.CloseDevTools();

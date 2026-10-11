@@ -1,5 +1,7 @@
 using System;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Windows.Forms;
 
 namespace StealthBrowser.Managers {
@@ -62,6 +64,53 @@ namespace StealthBrowser.Managers {
 		public static void Apply(IntPtr hwnd) {
 			if (hwnd == IntPtr.Zero) return;
 			SetWindowDisplayAffinity(hwnd, StealthOn ? StealthAffinity : WDA_NONE);
+		}
+
+		[DllImport("user32.dll")]
+		private static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+		private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+		[DllImport("user32.dll", CharSet = CharSet.Unicode)]
+		private static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+		[DllImport("user32.dll")]
+		private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+		/// <summary>
+		/// 找到本进程的 CEF 开发者工具顶层窗口并补上隐身，找到返回 true。
+		/// （F12 开发者工具是 CEF 独立创建的顶层窗口，不在主窗口隐身覆盖范围内。）
+		/// </summary>
+		public static bool ApplyToDevTools() {
+			bool found = false;
+			uint selfPid = (uint)Process.GetCurrentProcess().Id;
+			EnumWindows((hWnd, lParam) => {
+				GetWindowThreadProcessId(hWnd, out uint pid);
+				if (pid != selfPid) return true;
+				var sb = new StringBuilder(256);
+				GetWindowText(hWnd, sb, sb.Capacity);
+				var title = sb.ToString();
+				if (title.StartsWith("DevTools", StringComparison.OrdinalIgnoreCase) ||
+					title.IndexOf("Developer Tools", StringComparison.OrdinalIgnoreCase) >= 0) {
+					Apply(hWnd);
+					found = true;
+				}
+				return true;
+			}, IntPtr.Zero);
+			return found;
+		}
+
+		/// <summary>
+		/// 打开开发者工具后调用：窗口创建有延迟，轮询找到后补上隐身。
+		/// </summary>
+		public static void WatchDevTools() {
+			var timer = new Timer { Interval = 400 };
+			int tries = 0;
+			timer.Tick += (s, e) => {
+				tries++;
+				if (ApplyToDevTools() || tries >= 15) {
+					timer.Stop();
+					timer.Dispose();
+				}
+			};
+			timer.Start();
 		}
 
 		public static string ModeName =>

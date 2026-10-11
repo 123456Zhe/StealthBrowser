@@ -20,7 +20,13 @@ namespace StealthBrowser.Config {
 		/// <summary>
 		/// The browser's user agent string, which identifies itself to websites
 		/// </summary>
-		public static string UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.5112.102 Safari/537.36 CefSharp/" + Cef.CefSharpVersion; // UserAgent to fix issue with Google account authentication		
+		/// <summary>
+		/// Chrome 大版本跟随当前打包的 CEF（Cef.ChromiumVersion），不再硬编码；
+		/// 去掉了 CefSharp 后缀——隐身浏览器不应自报自动化框架身份。
+		/// （注：当年加 CefSharp 后缀是为修 Google 账号登录问题，如登录异常可临时加回。）
+		/// </summary>
+		public static string UserAgent =>
+			"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/" + Cef.ChromiumVersion + " Safari/537.36";
 		/// <summary>
 		/// The home page of your browser which shows up when you press the home button
 		/// </summary>
@@ -100,6 +106,11 @@ namespace StealthBrowser.Config {
 		/// Can users resize text areas on webpages?
 		/// </summary>
 		public static bool TextAreaResize = true;
+		/// <summary>
+		/// 调试开关：忽略所有 TLS 证书错误（仅用于自签证书/抓包调试）。
+		/// 默认关闭；开启后中间人攻击畅通无阻，日常使用请勿打开。
+		/// </summary>
+		public static bool IgnoreCertificateErrors = false;
 
 
 		//3way to set proxy, needs enum to reduce complication.
@@ -155,7 +166,7 @@ namespace StealthBrowser.Config {
 			// add user agent settings
 			settings.UserAgent = UserAgent;
 			settings.AcceptLanguageList = AcceptLanguage;
-			settings.IgnoreCertificateErrors = true;
+			settings.IgnoreCertificateErrors = IgnoreCertificateErrors;
 
 			// needed for loading local images
 			if (LocalFiles) {

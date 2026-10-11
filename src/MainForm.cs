@@ -643,6 +643,8 @@ namespace StealthBrowser {
 		}
 		public void OpenDeveloperTools() {
 			CurBrowser.ShowDevTools();
+			// F12 开发者工具是 CEF 独立顶层窗口，补上隐身（窗口创建有延迟，内部轮询）。
+			StealthManager.WatchDevTools();
 		}
 		public void CloseOtherTabs() {
 			List<BrowserTabPage> listToClose = new List<BrowserTabPage>();
@@ -798,6 +800,7 @@ namespace StealthBrowser {
 			btnStealth.Click += (s, e) => {
 				StealthManager.StealthOn = !StealthManager.StealthOn;
 				StealthManager.Apply(Handle);
+				StealthManager.ApplyToDevTools();
 				UpdateStealthButton();
 			};
 			PanelToolbar.Controls.Add(btnStealth);
