@@ -14,6 +14,10 @@ using StealthBrowser.Utils;
 namespace StealthBrowser.Handlers {
 	internal class ResourceRequestHandler : IResourceRequestHandler {
 		readonly MainForm myForm;
+	// External protocols allowed to launch the OS handler. Keep minimal -
+	// add a scheme here only if the browser genuinely needs it.
+	private static readonly HashSet<string> AllowedExternalSchemes =
+		new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "mailto" };
 		public ResourceRequestHandler(MainForm form) {
 			myForm = form;
 		}
@@ -159,7 +163,16 @@ namespace StealthBrowser.Handlers {
 		//     return to true to attempt execution via the registered OS protocol handler, if
 		//     any. Otherwise return false.
 		public bool OnProtocolExecution(IWebBrowser chromiumWebBrowser, IBrowser browser, IFrame frame, IRequest request) {
-			return true;
+			// SECURITY: only explicitly allowlisted external protocols may launch
+			// the OS handler. Unconditional "true" let any page silently trigger
+			// arbitrary protocol handlers (file:, custom app schemes, ...).
+			try {
+				string scheme = new Uri(request.Url).Scheme;
+				return AllowedExternalSchemes.Contains(scheme);
+			}
+			catch {
+				return false;
+			}
 		}
 		//
 		// Summary:
@@ -210,7 +223,7 @@ namespace StealthBrowser.Handlers {
 				if (!request.Url.IsURLLocalhost()) {
 
 					// redirect to web archive to try and find older version
-					frame.LoadUrl("http://web.archive.org/web/*/" + request.Url);
+					frame.LoadUrl("https://web.archive.org/web/*/" + request.Url); // https: never leak the browsed URL over plaintext http
 
 				}
 				else {

@@ -63,7 +63,18 @@ namespace StealthBrowser.Handlers {
 
 			// if url is browser file
 			if (uri.Host == "storage") {
-				fileName = appPath + uri.Host + fileName;
+				// CWE-22: neutralize path traversal (e.g. stealth://storage/..\\..\\secret.txt).
+				// Resolve the requested path and require it to stay inside the storage root.
+				string storageRoot = Path.GetFullPath(Path.Combine(appPath, uri.Host));
+				string resolved = Path.GetFullPath(Path.Combine(storageRoot, uri.AbsolutePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar)));
+				if (!resolved.StartsWith(storageRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+					&& !resolved.Equals(storageRoot, StringComparison.OrdinalIgnoreCase)) {
+					// traversal attempt - cancel the request
+					callback.Dispose();
+					handleRequest = true;
+					return false;
+				}
+				fileName = resolved;
 				if (File.Exists(fileName)) {
 					Task.Factory.StartNew(() => {
 						using (callback) {

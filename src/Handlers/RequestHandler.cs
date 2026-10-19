@@ -107,7 +107,11 @@ namespace StealthBrowser.Handlers {
 		//     Return false to cancel the request immediately. Return true and use CefSharp.IRequestCallback
 		//     to execute in an async fashion.
 		public bool OnCertificateError(IWebBrowser browserControl, IBrowser browser, CefErrorCode errorCode, string requestUrl, ISslInfo sslInfo, IRequestCallback callback) {
-			return true;
+			// Fail closed: cancel the request so Chromium shows its standard
+			// certificate-error page. Returning true without ever invoking the
+			// callback would hang the request and leak the callback resource.
+			callback.Dispose();
+			return false;
 		}
 
 
