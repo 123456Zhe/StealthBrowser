@@ -217,6 +217,13 @@ namespace StealthBrowser.Handlers {
 			}
 
 
+			// only the main frame's load result may navigate the page:
+			// a subresource (image/script/xhr) 404/5xx must not hijack the whole page
+			if (!frame.IsMain) {
+				return;
+			}
+
+
 			// if NOT FOUND
 			if (code == 404) {
 

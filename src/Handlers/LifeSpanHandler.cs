@@ -148,6 +148,13 @@ namespace StealthBrowser.Handlers {
 		//     the same process as the source browser.
 		public bool OnBeforePopup(IWebBrowser browserControl, IBrowser browser, IFrame frame, string targetUrl, string targetFrameName, WindowOpenDisposition targetDisposition, bool userGesture, IPopupFeatures popupFeatures, IWindowInfo windowInfo, IBrowserSettings browserSettings, ref bool noJavascriptAccess, out IWebBrowser newBrowser) {
 
+			// block popups without a user gesture: gestureless popups
+			// would otherwise open new tabs in bulk
+			if (!userGesture) {
+				newBrowser = null;
+				return true;
+			}
+
 			// open popup in new tab!
 			newBrowser = null;
 			myForm.AddNewBrowserTab(targetUrl);

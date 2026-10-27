@@ -22,7 +22,20 @@ namespace StealthBrowser.Managers {
 			System.IO.Directory.CreateDirectory(dir);
 			string name = item.SuggestedFileName;
 			if (string.IsNullOrEmpty(name)) name = "download";
-			return System.IO.Path.Combine(dir, System.IO.Path.GetFileName(name));
+			string fileName = System.IO.Path.GetFileName(name);
+			string path = System.IO.Path.Combine(dir, fileName);
+			// never silently overwrite an existing file: pick a free
+			// name instead, like browsers do ("file (1).ext", ...)
+			if (System.IO.File.Exists(path)) {
+				string stem = System.IO.Path.GetFileNameWithoutExtension(fileName);
+				string ext = System.IO.Path.GetExtension(fileName);
+				int n = 1;
+				do {
+					path = System.IO.Path.Combine(dir, stem + " (" + n + ")" + ext);
+					n++;
+				} while (System.IO.File.Exists(path));
+			}
+			return path;
 		}
 		public static List<int> CancelRequests => downloadCancelRequests;
 
