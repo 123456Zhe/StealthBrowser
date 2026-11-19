@@ -19,6 +19,9 @@ namespace StealthBrowser.Managers {
 		private static Dictionary<string, object> SettingsDict;
 		private static bool SettingsChanged = false;
 		private static Timer SaveTimer;
+		// UI 线程（Get/Set）与保存定时器线程（SaveSettings）都会读写 SettingsDict，
+		// Dictionary 非线程安全，并发读写可能抛异常，故用同一把锁保护。
+		private static readonly object SettingsLock = new object();
 
 		/// <summary>
 		/// Loads existing settings from the AppData folder if they exist.
@@ -46,7 +49,9 @@ namespace StealthBrowser.Managers {
 		/// </summary>
 		public static object Get(string key, object defaultVal = null) {
 			if (SettingsDict == null) throw new Exception("You need to call ZConfig.Init() first!");
-			if (SettingsDict.ContainsKey(key)) return SettingsDict[key];
+			lock (SettingsLock) {
+				if (SettingsDict.ContainsKey(key)) return SettingsDict[key];
+			}
 			return defaultVal;
 		}
 
@@ -80,7 +85,7 @@ namespace StealthBrowser.Managers {
 		/// </summary>
 		public static bool GetBool(string key, bool defaultVal = false) {
 			var val = GetString(key, defaultVal.ToString());
-			return val == "true" || val == "1";
+			return val.Equals("true", StringComparison.OrdinalIgnoreCase) || val == "1";
 		}
 
 		/// <summary>
@@ -88,8 +93,10 @@ namespace StealthBrowser.Managers {
 		/// </summary>
 		public static void Set(string key, object value) {
 			if (SettingsDict == null) throw new Exception("Call ConfigManager.Init() first!");
-			SettingsDict[key] = value;
-			SettingsChanged = true;
+			lock (SettingsLock) {
+				SettingsDict[key] = value;
+				SettingsChanged = true;
+			}
 		}
 
 		/// <summary>
@@ -97,8 +104,20 @@ namespace StealthBrowser.Managers {
 		/// </summary>
 		private static Dictionary<string, object> LoadSettings() {
 			if (File.Exists(SettingsFilePath)) {
-				var json = File.ReadAllText(SettingsFilePath);
-				return JsonConvert.DeserializeObject<Dictionary<string, object>>(json) ?? new Dictionary<string, object>();
+				try {
+					var json = File.ReadAllText(SettingsFilePath);
+					return JsonConvert.DeserializeObject<Dictionary<string, object>>(json) ?? new Dictionary<string, object>();
+				} catch (Exception) {
+					// settings.json 已损坏（例如上次写入中途崩溃）：备份坏文件后用空配置启动，
+					// 否则每次启动都会在加载处崩溃。
+					try {
+						var backup = SettingsFilePath + ".corrupt-" + DateTime.Now.ToString("yyyyMMdd-HHmmss");
+						File.Move(SettingsFilePath, backup);
+					} catch (Exception) {
+						// 备份失败也不要炸启动，直接用空配置。
+					}
+					return new Dictionary<string, object>();
+				}
 			}
 			return new Dictionary<string, object>();
 		}
@@ -107,9 +126,19 @@ namespace StealthBrowser.Managers {
 		/// Saves the settings to the JSON file
 		/// </summary>
 		public static void SaveSettings() {
-			var json = JsonConvert.SerializeObject(SettingsDict, Formatting.Indented);
-			File.WriteAllText(SettingsFilePath, json);
-			SettingsChanged = false;
+			lock (SettingsLock) {
+				var json = JsonConvert.SerializeObject(SettingsDict, Formatting.Indented);
+				// 原子写：先写临时文件再替换，避免写一半崩溃导致 settings.json 损坏；
+				// 序列化与写盘同在锁内，避免 Set 的改动在快照后、清标志前丢失。
+				var tempPath = SettingsFilePath + ".tmp";
+				File.WriteAllText(tempPath, json);
+				if (File.Exists(SettingsFilePath)) {
+					File.Replace(tempPath, SettingsFilePath, null);
+				} else {
+					File.Move(tempPath, SettingsFilePath);
+				}
+				SettingsChanged = false;
+			}
 		}
 
 		/// <summary>

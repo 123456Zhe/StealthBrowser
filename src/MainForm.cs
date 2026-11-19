@@ -1053,8 +1053,12 @@ namespace StealthBrowser {
 					CloseActiveTab();
 				}
 
-				// switch to the last active tab
-				TabPages.SelectedIndex = ConfigManager.GetInt("browser.lastTab", 0);
+				// switch to the last active tab (clamp: restored tabs may be fewer
+				// than the saved index, and SelectedIndex throws out of range)
+				var lastTab = ConfigManager.GetInt("browser.lastTab", 0);
+				if (TabPages.Items.Count > 0) {
+					TabPages.SelectedIndex = Math.Max(0, Math.Min(lastTab, TabPages.Items.Count - 1));
+				}
 			}
 		}
 		private void SaveTabsBeforeClosing() {
