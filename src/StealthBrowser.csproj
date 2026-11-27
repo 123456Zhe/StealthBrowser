@@ -32,6 +32,14 @@
     <EmbeddedResource Include="Resources\stealthbrowser.ico" />
   </ItemGroup>
   <ItemGroup>
+    <!-- 内部页面（stealthbrowser://storage/...）从可执行文件旁的 storage 目录读取，
+         随构建/发布一起复制，否则错误页会 404。 -->
+    <None Update="storage\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="CefSharp.Common" Version="152.0.100" />
     <PackageReference Include="CefSharp.Common.NETCore" Version="152.0.100" />
     <PackageReference Include="CefSharp.WinForms.NETCore" Version="152.0.100" />

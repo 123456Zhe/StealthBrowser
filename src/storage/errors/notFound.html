@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<title>找不到页面</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #1e1f24;
+    color: #e6e6e6;
+    font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  }
+  main { max-width: 640px; padding: 32px; text-align: center; }
+  h1 { font-size: 28px; font-weight: 600; margin: 0 0 12px; }
+  p { color: #a8a8b3; line-height: 1.6; margin: 0 0 16px; font-size: 14px; }
+  .url {
+    display: block;
+    word-break: break-all;
+    background: #2a2c33;
+    border: 1px solid #3a3d46;
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin: 0 0 24px;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 13px;
+    color: #cfd2da;
+    text-align: left;
+  }
+  .actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  button {
+    cursor: pointer;
+    border: 1px solid #3a3d46;
+    border-radius: 6px;
+    background: #2a2c33;
+    color: #e6e6e6;
+    padding: 9px 16px;
+    font-size: 14px;
+  }
+  button:hover { background: #343741; }
+  button.primary { background: #2f6fed; border-color: #2f6fed; }
+  button.primary:hover { background: #3b7bf5; }
+  .note { margin-top: 20px; font-size: 12px; color: #86868f; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>找不到这个页面</h1>
+  <p>服务器返回 404。请检查地址是否输入正确。</p>
+  <span class="url" id="url"></span>
+  <div class="actions">
+    <button class="primary hidden" id="wayback">去 Wayback Machine 查找快照</button>
+  </div>
+  <p class="note hidden" id="note">
+    仅在点击时查询。只会把 <code>origin + path</code> 发给 archive.org，不包含查询参数（? 之后的内容）。
+  </p>
+</main>
+<script>
+(function () {
+  var raw = "";
+  try {
+    raw = new URLSearchParams(location.search).get("path") || "";
+  } catch (e) {
+    raw = "";
+  }
+
+  document.getElementById("url").textContent = raw || "（未知地址）";
+
+  // 解析原 URL；只有 http/https 才提供存档查询，且只发 origin + path。
+  var target = null;
+  try {
+    var u = new URL(raw);
+    if (u.protocol === "http:" || u.protocol === "https:") {
+      target = u.origin + u.pathname;
+    }
+  } catch (e) {
+    target = null;
+  }
+
+  if (target) {
+    var btn = document.getElementById("wayback");
+    btn.classList.remove("hidden");
+    document.getElementById("note").classList.remove("hidden");
+    btn.addEventListener("click", function () {
+      // 明确由用户点击触发，才向第三方 archive.org 发送地址。
+      location.href = "https://web.archive.org/web/*/" + target;
+    });
+  }
+})();
+</script>
+</body>
+</html>

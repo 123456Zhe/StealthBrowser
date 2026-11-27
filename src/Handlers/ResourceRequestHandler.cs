@@ -208,9 +208,6 @@ namespace StealthBrowser.Handlers {
 		//     is the number of response bytes actually read.
 		public void OnResourceLoadComplete(IWebBrowser chromiumWebBrowser, IBrowser browser, IFrame frame, IRequest request, IResponse response, UrlRequestStatus status, long receivedContentLength) {
 
-			int code = response.StatusCode;
-
-
 			// exit if frame is invalid (if the frame has closed, for example)
 			if (!frame.IsValid) {
 				return;
@@ -224,46 +221,78 @@ namespace StealthBrowser.Handlers {
 			}
 
 
-			// if NOT FOUND
-			if (code == 404) {
+			string url = request.Url ?? "";
 
-				if (!request.Url.IsURLLocalhost()) {
 
-					// redirect to web archive to try and find older version
-					frame.LoadUrl("https://web.archive.org/web/*/" + request.Url); // https: never leak the browsed URL over plaintext http
-
-				}
-				else {
-
-					// show offline "file not found" page
-					frame.LoadUrl(BrowserConfig.FileNotFoundURL + "?path=" + request.Url.EncodeURL());
-				}
-
+			// GUARD: never react to our own internal error pages or to archive.org
+			// itself. Otherwise a 404 shown by web.archive.org (no snapshot) would
+			// re-enter this handler and stack another web.archive.org prefix forever.
+			if (IsInternalURL(url) || IsArchiveURL(url)) {
+				return;
 			}
+
+
+			int code = response.StatusCode;
 
 
 			// if FILE NOT FOUND
-			else if (request.Url.IsURLOfflineFile()) {
-				string path = request.Url.FileURLToPath();
+			if (url.IsURLOfflineFile()) {
+				string path = url.FileURLToPath();
 				if (path.FileNotExists()) {
 
 					// show offline "file not found" page
-					frame.LoadUrl(BrowserConfig.FileNotFoundURL + "?path=" + path.EncodeURL());
-
+					ShowNotFoundPage(frame, url);
+					return;
 				}
 			}
-			else {
 
 
-				// if CANNOT CONNECT
-				if (code == 444 || (code >= 500 && code <= 599)) {
+			// if NOT FOUND
+			if (code == 404) {
 
-					// show offline "cannot connect to server" page
-					frame.LoadUrl(BrowserConfig.CannotConnectURL);
-				}
+				// PRIVACY: do NOT auto-redirect to web.archive.org. The browsed URL
+				// (including query strings / tokens) must not be handed to a third
+				// party without the user's consent. Show a local error page instead;
+				// it offers an explicit "look up on Wayback Machine" button.
+				ShowNotFoundPage(frame, url);
 
 			}
+			else if (code == 444 || (code >= 500 && code <= 599)) {
 
+				// show offline "cannot connect to server" page
+				frame.LoadUrl(BrowserConfig.CannotConnectURL);
+			}
+
+		}
+
+		/// <summary>
+		/// Shows the internal "not found" page for the given URL. The page itself
+		/// decides whether it may offer a Wayback Machine lookup and, on click,
+		/// sends only origin + path (no query, no fragment) to archive.org.
+		/// </summary>
+		private static void ShowNotFoundPage(IFrame frame, string url) {
+			frame.LoadUrl(BrowserConfig.FileNotFoundURL + "?path=" + url.EncodeURL());
+		}
+
+		/// <summary>
+		/// True for pages served by our own stealthbrowser:// scheme.
+		/// </summary>
+		private static bool IsInternalURL(string url) {
+			return url.BeginsWith(BrowserConfig.InternalScheme + ":", false);
+		}
+
+		/// <summary>
+		/// True for archive.org (and subdomains) URLs.
+		/// </summary>
+		private static bool IsArchiveURL(string url) {
+			try {
+				string host = new Uri(url).Host;
+				return host.Equals("archive.org", StringComparison.OrdinalIgnoreCase)
+					|| host.EndsWith(".archive.org", StringComparison.OrdinalIgnoreCase);
+			}
+			catch {
+				return false;
+			}
 		}
 		//
 		// Summary:
